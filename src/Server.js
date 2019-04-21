@@ -128,14 +128,6 @@ class Server {
             serverMinions: 0,
             defaultName: "minion",
             minionsOnLeaderboard: 0,
-            /** TOURNAMENT **/
-            tourneyMaxPlayers: 12,
-            tourneyPrepTime: 10,
-            tourneyEndTime: 30,
-            tourneyTimeLimit: 20,
-            tourneyAutoFill: 0,
-            tourneyAutoFillPlayers: 1,
-            tourneyLeaderboardToggleTime: 10,
         };
         this.ipBanList = [];
         this.minionTest = [];
@@ -932,30 +924,9 @@ class Server {
     loadFiles() {
         // Load config
         var fs = require("fs");
-        var fileNameConfig = this.srcFiles + '/gameserver.ini';
-        try {
-            if (!fs.existsSync(fileNameConfig)) {
-                // No config
-                Logger.warn("Config not found... Generating new config");
-                // Create a new config
-                fs.writeFileSync(fileNameConfig, ini.stringify(this.config), 'utf-8');
-            }
-            else {
-                // Load the contents of the config file
-                var load = ini.parse(fs.readFileSync(fileNameConfig, 'utf-8'));
-                // Replace all the default config's values with the loaded config's values
-                for (var key in load) {
-                    if (this.config.hasOwnProperty(key))
-                        this.config[key] = load[key];
-                    else
-                        Logger.error("Unknown gameserver.ini value: " + key);
-                }
-            }
-        }
-        catch (err) {
-            Logger.error(err.stack);
-            Logger.error("Failed to load " + fileNameConfig + ": " + err.message);
-        }
+        
+        this.config = require("./config.js");
+
         //Logger.setVerbosity(this.config.logVerbosity);
         //Logger.setFileVerbosity(this.config.logFileVerbosity);
         // Load bad words
@@ -1045,7 +1016,7 @@ class Server {
             Logger.error("Failed to load " + fileNameIpBan + ": " + err.message);
         }
         // Convert config settings
-        this.config.serverRestart = this.config.serverRestart === 0 ? 1e999 : this.config.serverRestart * 1500;
+        //this.config.serverRestart = this.config.serverRestart === 0 ? 1e999 : this.config.serverRestart * 1500;
     }
     startStatsServer(port) {
         // Create stats

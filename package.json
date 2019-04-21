@@ -8,8 +8,7 @@
     "main": "src/index.js",
     "dependencies": {
         "ws": "latest",
-        "figlet": "latest",
-        "ini": "latest"
+        "figlet": "latest"
     },
     "devDependencies": {},
     "scripts": {
