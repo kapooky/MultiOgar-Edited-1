@@ -1,5 +1,5 @@
 const Logger = require("./Logger");
-const ini = require("./ini");
+const ini = require("ini");
 
 class CommandsList {
     constructor() {

@@ -1,5 +1,6 @@
 // Library imports
 var http = require('http');
+var ini = require('ini');
 
 // Project imports
 var Entity = require('./entity');
@@ -182,8 +183,8 @@ class Server {
         Logger.info("Current game mode is " + this.mode.name);
         // Player bots (Experimental)
         if (this.config.serverBots) {
-            for (var i = 0; i < this.config.serverBots; i++)
-                this.bots.addBot();
+           for (var i = 0; i < this.config.serverBots; i++)
+               this.bots.addBot();
             Logger.info("Added " + this.config.serverBots + " player bots");
         }
         this.spawnCells(this.config.virusAmount, this.config.foodAmount);
@@ -553,12 +554,6 @@ class Server {
             this.nodesEjected = [];
             this.nodesPlayer = [];
             this.movingNodes = [];
-            if (this.config.serverBots) {
-                for (var i = 0; i < this.config.serverBots; i++)
-                    this.bots.addBot();
-                Logger.info("Added " + this.config.serverBots + " player bots");
-            }
-            ;
             this.commands;
             this.ticks = 0;
             this.startTime = Date.now();
@@ -938,7 +933,6 @@ class Server {
         // Load config
         var fs = require("fs");
         var fileNameConfig = this.srcFiles + '/gameserver.ini';
-        var ini = require(this.srcFiles + '/modules/ini.js');
         try {
             if (!fs.existsSync(fileNameConfig)) {
                 // No config
