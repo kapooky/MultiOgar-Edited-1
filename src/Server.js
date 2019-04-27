@@ -1,6 +1,5 @@
 // Library imports
 var http = require('http');
-var ini = require('ini');
 
 // Project imports
 var Entity = require('./entity');
@@ -241,7 +240,7 @@ class Server {
             }
         }
         if (this.config.clientBind.length && req.headers.origin.indexOf(this.clientBind) < 0) {
-            ws.close(1000, "Client not allowed");
+            //ws.close(1000, "Client not allowed");
             return;
         }
         ws.isConnected = true;

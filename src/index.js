@@ -3,7 +3,6 @@ var Logger = require('./modules/Logger');
 var CommandsList = require('./modules/CommandList');
 var Commands = new CommandsList;
 var Server = require('./Server');
-var figlet = require('figlet');
 
 // Init variables
 var showConsole = true;
