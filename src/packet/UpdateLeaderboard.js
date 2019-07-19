@@ -21,7 +21,7 @@ UpdateLeaderboard.prototype.build = function(protocol) {
             else                    return this.buildFfa(protocol); // 13/14
         case 50:
             // Team
-            return this.buildTeam();
+            return this.sendTeamPacket();
         default:
             return null;
     }
@@ -160,7 +160,7 @@ function writeCount(writer, flag1, flag2) {
     writer.writeUInt32(flag2 >>> 0); // Number of elements
 }
 // Team
-UpdateLeaderboard.prototype.buildTeam = function() {
+UpdateLeaderboard.prototype.sendTeamPacket = function () {
     var writer = new BinaryWriter();
     writeCount(writer, 0x32, this.leaderboard.length);
     for (var i = 0; i < this.leaderboard.length; i++) {
