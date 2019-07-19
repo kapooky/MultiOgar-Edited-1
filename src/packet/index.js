@@ -10,5 +10,8 @@ module.exports = {
     SetBorder: require('./SetBorder'),
     UpdateNodes: require('./UpdateNodes'),
     UpdateLeaderboard: require('./UpdateLeaderboard'),
+    UpdateMinimap: require('./UpdateMinimap'),
     LeaderboardPosition: require('./LeaderboardPosition'),
 };
+
+
