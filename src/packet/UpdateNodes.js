@@ -359,6 +359,7 @@ UpdateNodes.prototype.writeEatItems = function (writer) {
     var scrambleId = this.playerTracker.scrambleId;
 
     writer.writeUInt16(this.eatNodes.length >>> 0);            // EatRecordCount
+    teamScores = [];
     for (var i = 0; i < this.eatNodes.length; i++) {
         var node = this.eatNodes[i];
         var hunterId = 0;

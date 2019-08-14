@@ -1,5 +1,6 @@
 var Packet = require('./packet');
 var Vec2 = require('./modules/Vec2');
+var playerCell = require('./entity/PlayerCell');
 var BinaryWriter = require("./packet/BinaryWriter");
 
 function PlayerTracker(gameServer, socket) {
@@ -26,13 +27,17 @@ function PlayerTracker(gameServer, socket) {
     this.connectedTime = new Date();
 
     this.tickLeaderboard = 0;
+
+    this.tickMinimap = 0;
     this.team = 0;
     this.spectate = false;
     this.freeRoam = false;      // Free-roam mode enables player to move in spectate mode
     this.spectateTarget = null; // Spectate target, null for largest player
     this.lastKeypressTick = 0;
-
     this.centerPos = new Vec2(0, 0);
+
+    this.ismouseClicked = false;
+    this.mouseClicked = new Vec2(0, 0);
     this.mouse = new Vec2(0, 0);
     this.viewBox = {
         minx: 0,
@@ -46,7 +51,7 @@ function PlayerTracker(gameServer, socket) {
     this.scrambleY = 0;
     this.scrambleId = 0;
     this.isMinion = false;
-    this.isMuted = false;
+    this.isd = false;
 
     // Custom commands
     this.spawnmass = 0;
@@ -183,6 +188,7 @@ PlayerTracker.prototype.checkConnection = function() {
         this.cells = [];
         this.isRemoved = true;
         this.mouse = null;
+
         this.socket.packetHandler.pressSpace = false;
         this.socket.packetHandler.pressQ = false;
         this.socket.packetHandler.pressW = false;
@@ -223,6 +229,7 @@ PlayerTracker.prototype.updateTick = function() {
     this.gameServer.quadTree.find(this.viewBox, function(check) {
         self.viewNodes.push(check);
     });
+    //what the fuck does this do
     this.viewNodes.sort(function(a, b) { return a.nodeId - b.nodeId; });
 };
 
@@ -251,7 +258,6 @@ PlayerTracker.prototype.sendUpdate = function() {
         }
         if (++this.borderCounter >= 20) this.borderCounter = 0;
     }
-
     var delNodes = [];
     var eatNodes = [];
     var addNodes = [];
@@ -293,6 +299,19 @@ PlayerTracker.prototype.sendUpdate = function() {
     // Send update packet
     packetHandler.sendPacket(new Packet.UpdateNodes(this, addNodes, updNodes, eatNodes, delNodes));
 
+    //updateMiniMap
+    //This piece of code only works if the Gamemode is Teams.
+    //fuck it, the minimap is now operating on it's own tickTime.
+    if (this.gameServer.leaderboardType == 50) {
+        // 1 / 0.040 = 25 (once per second)
+        if (++this.tickMinimap > 25) {
+            this.tickMinimap = 0;
+            packetHandler.sendPacket(new Packet.UpdateMinimap(this, this.gameServer.leaderboard, this.gameServer.leaderboardType));
+        }
+    }
+
+    /* Note, I could have injected minimap code into the nested if statement below, but then, I would lose the flexibility modifying the miniMap ticktime. I don't want the minimap and leaderboard to operate at the same ticktime. */
+
     // Update leaderboard
     if (++this.tickLeaderboard > 25) {
         // 1 / 0.040 = 25 (once per second)
@@ -300,31 +319,131 @@ PlayerTracker.prototype.sendUpdate = function() {
         if (this.gameServer.leaderboardType >= 0)
             packetHandler.sendPacket(new Packet.UpdateLeaderboard(this, this.gameServer.leaderboard, this.gameServer.leaderboardType));
     }
+
 };
 
+PlayerTracker.prototype.circleBound = function (mousedata) {
+    var dx, dy, node, LIST;
+    if (this.freeRoam == true) {
+        //we need to find the viewNodes, based on the free roam center position, once we have the nodes we can do some logic
+        //toggling freeroam should not go here, consider the case where we dont end up finding a circle, then that would mean we would toggle out of freeroam. I don't want that functionality, I want to toggle out only if we find a circle.
+        // this.freeRoam = false;
+        var scale = this.gameServer.config.serverSpectatorScale;
+        var halfWidth = (this.gameServer.config.serverViewBaseX + 100) / scale / 2;
+        var halfHeight = (this.gameServer.config.serverViewBaseY + 100) / scale / 2;
+        this.viewBox = {
+            minx: this.centerPos.x - halfWidth,
+            miny: this.centerPos.y - halfHeight,
+            maxx: this.centerPos.x + halfWidth,
+            maxy: this.centerPos.y + halfHeight
+        };
+
+        // update visible nodes
+        this.viewNodes = [];
+        var self = this;
+        this.gameServer.quadTree.find(this.viewBox, function (check) {
+            self.viewNodes.push(check);
+        });
+
+        LIST = this.viewNodes;
+
+
+    } else {
+        //Simple scenerio, this means we are spectating a player, and have clicked somewhere in the viewport. Return the viewNOdes of the player we are spectating. (line 277 already does this for us)
+        LIST = this.viewNodes;
+
+    }
+
+    for (var i = 0; i < LIST.length; i++) {
+        node = LIST[i];
+        if (node instanceof playerCell) {
+            //d = mousedata.clone().sub(node.position);
+            dx = mousedata.x - node.position.x;
+            dy = mousedata.y - node.position.y;
+
+            // math to test if mouse is inside circle
+            if (dx * dx + dy * dy < node._size * node._size) {
+                return node;
+            }
+        }
+    }
+};
+var lastd = new Vec2(0, 0);
 PlayerTracker.prototype.updateSpecView = function(len) {
+    var scale;
     if (!this.spectate || len) {
         // in game
         var cx = 0, cy = 0;
         for (var i = 0; i < len; i++) {
+            //centerx is just the average x position of all the cells[i].position.x .... so is position.x on the quadrant?
             cx += this.cells[i].position.x / len;
             cy += this.cells[i].position.y / len;
             this.centerPos = new Vec2(cx, cy);
         }
     } else {
-        if (this.freeRoam || this.getSpecTarget() == null) {
+        //this.viewNodes will only be null at the very start, after that, it will always contain a reference to line 403's spectate target.
+        if (this.ismouseClicked == true) { //yes im noob programmer, verbose code is best code
+            var playerFound = this.circleBound(this.mouseClicked)
+            if (playerFound != null) {
+                //     //proper place to toggle free roam, if it's enabled;
+                if (this.freeRoam) this.freeRoam = false;
+                this.spectateTarget = playerFound.owner;
+                //         //TODO also, initialize the scale variable to whatever the spectateTarget's scale is.
+                //         //NOTE ^^ actually, never mind that comment just make sure to have this.spectateTarget = playerfound,and freeroam set to false. . This branch of this massive if statement only initailizes this.spectateTarget.
+                //         // The next time this function is called,
+                //         //it immediatley go to the last else branch (spectate target) branch of this if statement, and then dooes  all the relevant scaling.
+                //
+                //         //TODO fucking dammit, just realized, we must initialize scale in this part of the branch , otherwise we won't be able to send the camera packet, it requires scale as one of it's many paramaters.
+
+                //NOTE this causes a bug
+                //   this.setCenterPos(this.spectateTarget);
+
+                scale = playerFound.owner.getScale();
+            } else {
+                if (this.freeRoam) {
+                    var d = this.mouse.clone().sub(this.centerPos);
+                    var difference = d.x - lastd.x;
+                    scale = this.gameServer.config.serverSpectatorScale;
+                    var fraction = d.sqDist();
+                    var multiplier = 32 / fraction;
+                    var temp = this.centerPos.add(d, multiplier);
+                    this.setCenterPos(temp);
+                    lastd = d;
+                } else {
+                    var player = this.getSpecTarget();
+                    if (player) {
+                        this.setCenterPos(player.centerPos);
+                        scale = player.getScale();
+                        this.place = player.place;
+                        this.viewBox = player.viewBox;
+                        //this.viewNodes = is basically all the nodes that the player sees ( player cell, virus, food, etc)
+                        this.viewNodes = player.viewNodes;
+                    }
+                }
+            }
+            this.ismouseClicked = false;
+        }
+        //if (this.freeRoam || this.getSpecTarget() == null) {
+        else if (this.freeRoam) {
             // free roam
             var d = this.mouse.clone().sub(this.centerPos);
-            var scale = this.gameServer.config.serverSpectatorScale;
-            this.setCenterPos(this.centerPos.add(d, 32 / d.sqDist()));
+
+            var difference = d.x - lastd.x;
+            scale = this.gameServer.config.serverSpectatorScale;
+            var fraction = d.sqDist();
+            var multiplier = 32 / fraction;
+            var temp = this.centerPos.add(d, multiplier);
+            this.setCenterPos(temp);
+            lastd = d;
         } else {
             // spectate target
             var player = this.getSpecTarget();
             if (player) {
                 this.setCenterPos(player.centerPos);
-                var scale = player.getScale();
+                scale = player.getScale();
                 this.place = player.place;
                 this.viewBox = player.viewBox;
+                //this.viewNodes = is basically all the nodes that the player sees ( player cell, virus, food, etc)
                 this.viewNodes = player.viewNodes;
             }
         }
@@ -382,7 +501,10 @@ PlayerTracker.prototype.getSpecTarget = function() {
     return this.spectateTarget;
 };
 
-PlayerTracker.prototype.setCenterPos = function(p) {
+PlayerTracker.prototype.setCenterPos = function (p) {
+    //note what does this tell me? p is a point within the quadrant
+    //this just ensures that the point is within the map boundaries.
+
     p.x = Math.max(p.x, this.gameServer.border.minx);
     p.y = Math.max(p.y, this.gameServer.border.miny);
     p.x = Math.min(p.x, this.gameServer.border.maxx);

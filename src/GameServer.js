@@ -113,6 +113,7 @@ function GameServer() {
 
         /** EJECTED MASS **/
         ejectSize: 36.06, // vanilla: mass = val*val/100 = 13 mass?
+        //NOTE
         ejectSizeLoss: 42.43, // Eject size which will be substracted from player cell (vanilla: mass = val*val/100 = 18 mass?)
         ejectCooldown: 3, // Tick count until a player can eject mass again in ticks (1 tick = 40 ms)
         ejectSpawnPercent: 0.5, // Chance for a player to spawn from ejected mass. 0.5 = 50% (set to 0 to disable)
@@ -127,6 +128,7 @@ function GameServer() {
         playerStartSize: 31.6227766017, // Start size of the player cell. (vanilla: mass = val*val/100 = 10 mass)
         playerMaxCells: 16, // Maximum cells a player is allowed to have.
         playerSpeed: 1, // Player speed multiplier (1 = normal speed, 2 = twice the normal speed)
+        //NOTE
         playerDecayRate: 0.998, // Amount of player cell size lost per second
         playerDecayCap: 0, // Maximum mass a cell can have before it's decayrate multiplies by 10. (0 to disable)
         playerRecombineTime: 30, // Base time in seconds before a cell is allowed to recombine
@@ -504,7 +506,7 @@ GameServer.prototype.onChatMessage = function (from, to, message) {
         from.socket.playerCommand.executeCommandLine(message);
         return;
     }
-    if (!this.config.serverChat || (from && from.isMuted)) {
+    if (!this.config.serverChat || (from && from.isd)) {
         // chat is disabled or player is muted
         return;
     }
@@ -664,6 +666,7 @@ GameServer.prototype.mainLoop = function () {
     // update leaderboard
     if (((this.tickCounter + 7) % 25) === 0)
         this.updateLeaderboard(); // once per second
+
 
     // ping server tracker
     if (this.config.serverTracker && (this.tickCounter % 750) === 0)
@@ -956,6 +959,7 @@ GameServer.prototype.splitCells = function (client) {
     });
 };
 
+
 GameServer.prototype.canEjectMass = function (client) {
     if (client.lastEject === null) {
         // first eject
@@ -1021,6 +1025,8 @@ GameServer.prototype.loadFiles = function () {
     // Load config
     var fs = require("fs");
     var fileNameConfig = this.srcFiles + '/gameserver.ini';
+    //  var fileNameConfig = this.srcFiles + '/bots.ini';
+
     var ini = require(this.srcFiles + '/modules/ini.js');
     try {
         if (!fs.existsSync(fileNameConfig)) {

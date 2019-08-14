@@ -56,6 +56,7 @@ QuadNode.prototype.remove = function (item) {
     item._quadNode = null;
 };
 
+//occupies 15% of the cpu time.
 QuadNode.prototype.find = function (bound, callback) {
     if (this.childNodes.length != 0) {
         var quad = this.getQuad(bound);

@@ -15,7 +15,7 @@ function PacketHandler(gameServer, socket) {
     this.pressQ = false;
     this.pressW = false;
     this.pressSpace = false;
-    this.mouseData = null;
+
     this.handler = {
         254: this.handshake_onProtocol.bind(this),
     };
@@ -60,6 +60,7 @@ PacketHandler.prototype.handshake_onCompleted = function (protocol, key) {
         16: this.message_onMouse.bind(this),
         17: this.message_onKeySpace.bind(this),
         18: this.message_onKeyQ.bind(this),
+        19: this.message_onMousClicked.bind(this),
         21: this.message_onKeyW.bind(this),
         22: this.message_onKeyE.bind(this),
         23: this.message_onKeyR.bind(this),
@@ -114,6 +115,16 @@ PacketHandler.prototype.message_onMouse = function (message) {
         return;
     }
     this.mouseData = Buffer.concat([message]);
+};
+
+PacketHandler.prototype.message_onMousClicked = function (message) {
+    if (message.length !== 13 && message.length !== 9 && message.length !== 21) {
+        return;
+    }
+    if (this.gameServer.tickCounter - this.lastKeypressTick < 40)
+        return;
+    this.mouseClickedData = Buffer.concat([message]);
+
 };
 
 PacketHandler.prototype.message_onKeySpace = function (message) {
@@ -179,6 +190,7 @@ PacketHandler.prototype.message_onChat = function (message) {
         return;
     }
 
+    //what does the flags mean? [99,0,100,100,100,100] = [99,0,d,d,d,d], where 'dddd' was the chat message   what do the 99 and 0 do?
     var flags = message[1];    // flags
     var rvLength = (flags & 2 ? 4:0) + (flags & 4 ? 8:0) + (flags & 8 ? 16:0);
     if (message.length < 3 + rvLength) // second validation
@@ -226,6 +238,20 @@ PacketHandler.prototype.processMouse = function () {
     this.mouseData = null;
 };
 
+PacketHandler.prototype.processMouseClicked = function () {
+    if (this.mouseClickedData == null) return;
+    var client = this.socket.playerTracker;
+    client.ismouseClicked = true;
+    var reader = new BinaryReader(this.mouseClickedData);
+    reader.skipBytes(1);
+    if (this.mouseClickedData.length === 13) {
+        // protocol late 5, 6, 7
+        client.mouseClicked.x = reader.readInt32() - client.scrambleX;
+        client.mouseClicked.y = reader.readInt32() - client.scrambleY;
+    }
+    this.mouseClickedData = null;
+};
+
 PacketHandler.prototype.process = function () {
     if (this.pressSpace) { // Split cell
         this.socket.playerTracker.pressSpace();
@@ -246,6 +272,7 @@ PacketHandler.prototype.process = function () {
         this.socket.playerTracker.minionEject = false;
     }
     this.processMouse();
+    this.processMouseClicked();
 };
 
 PacketHandler.prototype.getRandomSkin = function () {
